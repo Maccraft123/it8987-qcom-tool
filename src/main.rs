@@ -27,41 +27,14 @@ fn reg16(dev: &mut LinuxI2CDevice, num: u8) -> u16 {
     dev.smbus_read_word_data(num).unwrap()
 }
 
-const REG_MODERN_STANDBY: u8 = 0x02;
+// const REG_MODERN_STANDBY: u8 = 0x02;
 // sleep enter: set_reg(dev, 0x2, 0x1);
 // sleep exit: set_reg(dev, 0x2, 0x2);
 // display off: set_reg(dev, 0x2, 0x3);
 // display on: set_reg(dev, 0x2, 0x4)
 
 const REG_IRQ_REASON: u8 = 0x05;
-// common:
-// 0x30: fan1 status change
-// 0x31: fan2 status change
-// 0x32: fan1 speed change
-// 0x33: fan2 status change
-// 0x34: completed lut update
-// 0x35: completed fan profile switch
-// 0x36: thermistor 1 thershold cross
-// 0x37: thermistor 2 thershold cross
-// 0x38: thermistor 3 thershold cross
-// 0x39: thermistor 4 thershold cross
-// 0x3a: thermistor 5 thershold cross
-// 0x3b: thermistor 6 thershold cross
-// 0x3c: thermistor 7 thershold cross
-// 0x3d: recovered from reset
-
-// lenovo yoga slim 7x specific:
-// 0x91: fn+q
-// 0x92: fn+m
-// 0x93: fn+space
-// 0x94: fn+r
-// 0x95: fnlock on
-// 0x96: fnlock off
-// 0x97: fn+n
-// 0x9a: ai (?)
-// 0x9b: npu (?)
-
-// honor magicbook art 14 specific:
+// honor magicbook art 14:
 // 0x01: brightness down
 // 0x02: brightness up
 // 0x04: mute
@@ -116,17 +89,57 @@ enum Command {
 
 fn main() {
     let args = Args::parse();
-    let path = find_i2cdev().unwrap();
-    println!("Using i2c device {:?}", path);
-    let mut dev = LinuxI2CDevice::new(path, 0x76).unwrap();
 
+    let mut slim7x = false;
+    let compatible = fs::read_to_string("/sys/firmware/devicetree/base/compatible")
+        .unwrap();
+    match compatible.as_str().split_once('\0').unwrap().0 {
+        "lenovo,yoga-slim7x" => {
+            println!("Found lenovo yoga slim 7x, enabling extensions");
+            slim7x = true;
+        },
+        _ => (),
+    }
+
+    let path = find_i2cdev()
+        .expect("Couldn't find i2c interface connected to EC, consider enabling i2c5 bus in the dts");
+    println!("Using i2c device {:?}", path);
+
+    let mut dev = LinuxI2CDevice::new(path, 0x76)
+        .expect("Couldn't open the i2c interface connected to the EC, consider loading i2c-dev or running this program as root");
     match args.cmd {
         Command::ListenToEvents => {
             set_reg(&mut dev, REG_IRQ_ENABLE, 1);
             loop {
                 let data = dev.smbus_read_byte_data(REG_IRQ_REASON).unwrap();
                 match data {
-                    _ => println!("data {:x?}", data),
+                    0x00 => (), // nothing
+                    0x30 => println!("fan1 status change"),
+                    0x31 => println!("fan2 status change"),
+                    0x30 => println!("fan1 status change"),
+                    0x31 => println!("fan2 status change"),
+                    0x32 => println!("fan1 speed change"),
+                    0x33 => println!("fan2 status change"),
+                    0x34 => println!("completed lut update"),
+                    0x35 => println!("completed fan profile switch"),
+                    0x36 => println!("thermistor 1 thershold cross"),
+                    0x37 => println!("thermistor 2 thershold cross"),
+                    0x38 => println!("thermistor 3 thershold cross"),
+                    0x39 => println!("thermistor 4 thershold cross"),
+                    0x3a => println!("thermistor 5 thershold cross"),
+                    0x3b => println!("thermistor 6 thershold cross"),
+                    0x3c => println!("thermistor 7 thershold cross"),
+                    0x3d => println!("recovered from reset"),
+                    0x91 if slim7x => println!("fn+q"),
+                    0x92 if slim7x => println!("fn+m"),
+                    0x93 if slim7x => println!("fn+space"),
+                    0x94 if slim7x => println!("fn+r"),
+                    0x95 if slim7x => println!("fnlock on"),
+                    0x96 if slim7x => println!("fnlock off"),
+                    0x97 if slim7x => println!("fn+n"),
+                    0x9a if slim7x => println!("ai (?)"),
+                    0x9b if slim7x => println!("npu (?)"),
+                    _ => println!("unknown irq reason: {:x?}", data),
                 }
                 sleep(Duration::from_millis(100));
             }
