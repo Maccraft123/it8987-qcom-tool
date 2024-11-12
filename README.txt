@@ -6,6 +6,6 @@ notes:
 - Microsoft Surface laptops have a completely different firmware
 - ThinkPad T14s also has the classic H8 EC found in x86 ThinkPads
 
-unknown things:
+mysteries:
 - why do some devices reference 0x76, and others 0x36
 - why slim7x lid switch doesn't work
