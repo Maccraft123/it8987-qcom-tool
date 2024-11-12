@@ -114,6 +114,7 @@ fn main() {
                 let data = dev.smbus_read_byte_data(REG_IRQ_REASON).unwrap();
                 match data {
                     0x00 => (), // nothing
+                    // Common:
                     0x30 => println!("fan1 status change"),
                     0x31 => println!("fan2 status change"),
                     0x30 => println!("fan1 status change"),
@@ -130,6 +131,8 @@ fn main() {
                     0x3b => println!("thermistor 6 thershold cross"),
                     0x3c => println!("thermistor 7 thershold cross"),
                     0x3d => println!("recovered from reset"),
+                    // Lenovo Yoga Slim 7x specifics:
+                    0x04 if slim7x => println!("fn+f4"),
                     0x91 if slim7x => println!("fn+q"),
                     0x92 if slim7x => println!("fn+m"),
                     0x93 if slim7x => println!("fn+space"),
