@@ -8,4 +8,3 @@ notes:
 
 mysteries:
 - why do some devices reference 0x76, and others 0x36
-- why slim7x lid switch doesn't work
