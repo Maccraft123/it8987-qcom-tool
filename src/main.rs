@@ -90,16 +90,12 @@ enum Command {
 fn main() {
     let args = Args::parse();
 
-    let mut slim7x = false;
     let compatible = fs::read_to_string("/sys/firmware/devicetree/base/compatible")
         .unwrap();
-    match compatible.as_str().split_once('\0').unwrap().0 {
-        "lenovo,yoga-slim7x" => {
-            println!("Found lenovo yoga slim 7x, enabling extensions");
-            slim7x = true;
-        },
-        _ => (),
-    }
+    let compatible = compatible.as_str().split_once('\0').unwrap().0;
+
+    let slim7x = compatible == "lenovo,yoga-slim7x";
+    let s15 = compatible == "asus,vivobook-s15";
 
     let path = find_i2cdev()
         .expect("Couldn't find i2c interface connected to EC, consider enabling i2c5 bus in the dts");
@@ -114,9 +110,7 @@ fn main() {
                 let data = dev.smbus_read_byte_data(REG_IRQ_REASON).unwrap();
                 match data {
                     0x00 => (), // nothing
-                    // Common:
-                    0x30 => println!("fan1 status change"),
-                    0x31 => println!("fan2 status change"),
+                    0x18 if s15 => println!("power button thing"),
                     0x30 => println!("fan1 status change"),
                     0x31 => println!("fan2 status change"),
                     0x32 => println!("fan1 speed change"),
@@ -131,7 +125,6 @@ fn main() {
                     0x3b => println!("thermistor 6 thershold cross"),
                     0x3c => println!("thermistor 7 thershold cross"),
                     0x3d => println!("recovered from reset"),
-                    // Lenovo Yoga Slim 7x specifics:
                     0x04 if slim7x => println!("fn+f4"),
                     0x91 if slim7x => println!("fn+q"),
                     0x92 if slim7x => println!("fn+m"),
@@ -142,6 +135,7 @@ fn main() {
                     0x97 if slim7x => println!("fn+n"),
                     0x9a if slim7x => println!("ai (?)"),
                     0x9b if slim7x => println!("npu (?)"),
+                    0xe0 if s15 => println!("thermistor ? threshold cross"),
                     _ => println!("unknown irq reason: {:x?}", data),
                 }
                 sleep(Duration::from_millis(100));
